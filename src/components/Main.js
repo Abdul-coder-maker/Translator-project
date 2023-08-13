@@ -1,6 +1,7 @@
 import React from "react";
 import axios from "axios";
 function Main() {
+  const apiKey = process.env.REACT_APP_API_KEY;
   const [windowWidth, setWindowWidth] = React.useState(window.innerWidth);
   const [formData, setFormData] = React.useState({
     languageFrom: "en en-us",
@@ -45,13 +46,34 @@ function Main() {
       languageFrom,
       languageTo,
     };
-    const response = await axios("http://localhost:8000/", {
-      params: data,
-    });
-    setFormData((prevData) => {
-      return { ...prevData, inputTo: response.data };
-    });
-    console.log(response);
+    const encodedParams = new URLSearchParams();
+    encodedParams.append("q", inputFrom);
+    encodedParams.append("target", (languageTo || "").split(" ")[0]);
+    encodedParams.append("source", (languageFrom || "").split(" ")[0]);
+    const options = {
+      method: "POST",
+      url: "https://google-translate1.p.rapidapi.com/language/translate/v2",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "Accept-Encoding": "application/gzip",
+        "X-RapidAPI-Key": apiKey,
+        "X-RapidAPI-Host": "google-translate1.p.rapidapi.com",
+      },
+      data: encodedParams,
+    };
+
+    try {
+      const response = await axios.request(options);
+      console.log(response.data);
+      setFormData((prevData) => {
+        return {
+          ...prevData,
+          inputTo: response.data.data.translations[0].translatedText,
+        };
+      });
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
