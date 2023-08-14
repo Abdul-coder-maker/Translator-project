@@ -41,11 +41,11 @@ function Main() {
   }, [windowWidth]);
   const handleTranslate = async () => {
     const { inputFrom, languageFrom, languageTo } = formData;
-    const data = {
-      inputFrom,
-      languageFrom,
-      languageTo,
-    };
+    // const data = {
+    //   inputFrom,
+    //   languageFrom,
+    //   languageTo,
+    // };
     const encodedParams = new URLSearchParams();
     encodedParams.append("q", inputFrom);
     encodedParams.append("target", (languageTo || "").split(" ")[0]);
