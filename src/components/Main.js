@@ -1,8 +1,11 @@
 import React from "react";
 import axios from "axios";
+
 function Main() {
-  const apiKey = process.env.REACT_APP_API_KEY;
   const [windowWidth, setWindowWidth] = React.useState(window.innerWidth);
+  const [textareaRows, setTextareaRows] = React.useState(
+    windowWidth > 1024 ? 12 : 6,
+  );
   const [formData, setFormData] = React.useState({
     languageFrom: "en en-us",
     languageTo: "es es-es",
@@ -20,52 +23,54 @@ function Main() {
   }
   React.useEffect(() => {
     function watchWidth() {
-      setWindowWidth(window.innerWidth);
-      if (windowWidth > "1024") {
-        document.getElementById("inputFrom").setAttribute("rows", "12");
-        document.getElementById("inputTo").setAttribute("rows", "12");
-      } else {
-        document.getElementById("inputFrom").setAttribute("rows", "6");
-        document.getElementById("inputTo").setAttribute("rows", "6");
-      }
+      const newWidth = window.innerWidth;
+      setWindowWidth(newWidth);
+      setTextareaRows(newWidth > 1024 ? 12 : 6);
     }
-    if (windowWidth > "1024") {
-      document.getElementById("inputFrom").setAttribute("rows", "12");
-      document.getElementById("inputTo").setAttribute("rows", "12");
-    }
-    window.addEventListener("resize", watchWidth);
 
+    window.addEventListener("resize", watchWidth);
     return function () {
       window.removeEventListener("resize", watchWidth);
     };
-  }, [windowWidth]);
+  }, []);
   const handleTranslate = async () => {
     const { inputFrom, languageFrom, languageTo } = formData;
-    // const data = {
-    //   inputFrom,
-    //   languageFrom,
-    //   languageTo,
-    // };
-    const encodedParams = new URLSearchParams();
-    encodedParams.append("q", inputFrom);
-    encodedParams.append("target", (languageTo || "").split(" ")[0]);
-    encodedParams.append("source", (languageFrom || "").split(" ")[0]);
-    const options = {
-      method: "POST",
-      url: "http://localhost:8000/",
-    };
+
+    // Input validation
+    if (!inputFrom || inputFrom.trim().length === 0) {
+      alert("Please enter text to translate");
+      return;
+    }
+
+    if (inputFrom.length > 5000) {
+      alert("Text exceeds maximum length of 5000 characters");
+      return;
+    }
+
+    const sourceLanguage = (languageFrom || "").split(" ")[0];
+    const targetLanguage = (languageTo || "").split(" ")[0];
 
     try {
-      const response = await axios.request(options);
-      console.log(response.data);
-      setFormData((prevData) => {
-        return {
-          ...prevData,
-          inputTo: response.data,
-        };
+      const response = await axios.post("/api/translate", {
+        text: inputFrom.trim(),
+        sourceLanguage,
+        targetLanguage,
       });
+
+      // Validate response
+      if (response.data && response.data.translation) {
+        setFormData((prevData) => ({
+          ...prevData,
+          inputTo: response.data.translation,
+        }));
+      } else {
+        alert("Failed to get translation");
+      }
     } catch (error) {
-      console.error(error);
+      console.error("Translation error:", error.message);
+      alert(
+        error.response?.data?.error || "Translation failed. Please try again.",
+      );
     }
   };
 
@@ -386,7 +391,7 @@ function Main() {
             name="inputFrom"
             value={formData.inputFrom}
             onChange={handleChange}
-            rows="6"
+            rows={textareaRows}
             className="w-full px-5 py-2 text-lg border rounded resize-none border-cyan-500 text-slate-700 focus:outline-none placeholder:font-medium"
             spellCheck="true"
             placeholder="Text ..."
@@ -449,7 +454,7 @@ function Main() {
             name="inputTo"
             value={formData.inputTo}
             onChange={handleChange}
-            rows="6"
+            rows={textareaRows}
             className="w-full px-5 py-2 text-lg border rounded resize-none border-cyan-500 text-slate-700 focus:outline-none"
             spellCheck="true"
             lang="ar"
@@ -459,15 +464,21 @@ function Main() {
             id="copy-btn"
             onClick={async () => {
               if (!navigator.clipboard) {
-                // Clipboard API not available
+                alert("Clipboard API not available");
                 return;
               }
               const text = formData.inputTo;
+              // Validate text before copying
+              if (!text || text.trim().length === 0) {
+                alert("Nothing to copy");
+                return;
+              }
               try {
                 await navigator.clipboard.writeText(text);
                 alert("Copied to clipboard");
               } catch (err) {
-                console.error("Failed to copy!", err);
+                console.error("Failed to copy:", err.message);
+                alert("Failed to copy to clipboard");
               }
             }}
             type="button"
